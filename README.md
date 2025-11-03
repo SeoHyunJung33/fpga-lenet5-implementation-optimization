@@ -30,6 +30,8 @@
 
 ## 3. 시스템 아키텍처
 
+<img width="543" height="214" alt="image" src="https://github.com/user-attachments/assets/0a10af60-37f7-4c8d-9e6c-6cce0010af16" />
+
 시스템은 크게 세 블록과 Host로 구성된다.
 
 - **Pseudo Sensor**
@@ -82,6 +84,8 @@
 ---
 
 ## 5. LeNet-5 연산기 (LeNet-5 Core)
+
+<img width="706" height="244" alt="image" src="https://github.com/user-attachments/assets/ee079d2d-9cbf-42eb-ab5e-d03a8f06d349" />
 
 LeNet-5 구조를 하드웨어 친화적으로 재구성하여 streaming 기반으로 동작하도록 설계하였다.
 
@@ -146,6 +150,8 @@ LeNet-5 구조를 하드웨어 친화적으로 재구성하여 streaming 기반�
 
 ## 6. 후처리 및 SDE 통합
 
+<img width="656" height="264" alt="image" src="https://github.com/user-attachments/assets/89287509-2766-4054-bc65-001aa77def5f" />
+
 ### 6.1 `cl_sde/design/cl_sde.sv`
 
 - 시스템 상위 허브 역할
@@ -207,5 +213,70 @@ LeNet-5 구조를 하드웨어 친화적으로 재구성하여 streaming 기반�
 - **안정적 이식성**
   - 클록 도메인 분리, 프레임/라인 경계 제어, 센서·Host 인터페이스 추상화를 통해  
     해상도·센서·Host 프로토콜이 바뀌어도 비교적 쉽게 포팅·통합이 가능하다.
+
+---
+
+## 1. 현황
+- 전처리와 LeNet-5 연산기는 Vivado Simulation 단독 환경에서 정상 동작 확인했습니다.
+- 이를 cl_sde 내부에 통합하고 CSR 리포트까지 만들려 했지만, 합성 단계에서 반복된 오류로 하드웨어 빌드 및 리포트 검증을 수행하지 못했습니다.
+
+## 2. 제출한 프로젝트 압축 파일의 경로
+- cl_ip: ~/aws-fpga/hdk/common/ip/cl_ip
+- design : ~/aws-fpga/hdk/cl/examples/cl_sde/design
+
+## 3. 문제 사항
+ - 인스턴스 내부 vivado 버전: Vivado 2024.1 
+ - 문제 파일(주요 증상 위치)
+  1) cl_sde.sv
+  2) system_top_0.xcix (패키징된 IP)
+-> 이 IP가 다른 디바이스에서 패키징 되어 그 과정에서 오류가 생겼습니다. 또한 2017 version으로 패키징되어서 Upgrade시켜야하지만 read only로 locked이 풀리지 않는 문제가 발생했습니다. 시간 부족의 이유로 custom ip를 재생성하지 못했습니다.
+
+## 4. 시뮬레이션 확인
+- 전처리 + LeNet5 연산기 RTL만 분리하여 Vivado Behavioral Simulation 수행했습니다.
+- CL 통합 전 단계에서는 기능상 문제 없는걸로 확인되었습니다.
+
+- Lenet5 accelerator simulation
+
+<img width="262" height="179" alt="image" src="https://github.com/user-attachments/assets/17b64318-3959-4ba3-a92a-09c32397f78e" />
+<img width="283" height="192" alt="image" src="https://github.com/user-attachments/assets/06fc1f19-3f14-4dcd-a246-affd279d4175" />
+
+- 본 이미지는 lenet5 accelerator의 시뮬레이션 출력 결과입니다. conv1->sub2->conv3->sub4->conv5->fc1->fc2까지 데이터 전달이 잘 나오는 것을 확인하였고, PRED_DIGIT은 예측 숫자를 의미하며 입력 이미지 7을 넣었을 때 7이 정상적으로 나오는 것을 확인하였습니다.
+
+<img width="569" height="268" alt="image" src="https://github.com/user-attachments/assets/682477a3-0fa0-4e5d-a20c-3b75f6b025b8" />
+<img width="597" height="108" alt="image" src="https://github.com/user-attachments/assets/759c434f-d414-473c-aef8-66821edba569" />
+
+- 전처리 simulation
+
+<한 프레임 데이터>
+
+<img width="678" height="407" alt="image" src="https://github.com/user-attachments/assets/75327f7a-e532-4344-8d2a-a74612d24b5a" />
+
+<한 프레임 딜레이 후 데이터 out>
+
+<img width="666" height="397" alt="image" src="https://github.com/user-attachments/assets/7174250b-e334-48ed-b469-00516b2c8532" />
+
+- 최종 출력은 q_* 신호들로 확인했고, 특히 q_valid, q_pixel, q_is_pad, q_line_last, q_frame_last를 중심으로 동작을 체크했습니다.
+- 첫 번째 파형:
+한 프레임이 연속으로 출력된 경우입니다. q_valid가 켜져 있는 동안 정확히 1024클럭(= 32×32)만큼 데이터가 나오고, q_line_last가 라인 끝에서 32번 펄스가 발생해서 한 라인이 32픽셀로 잘 끊기는 걸 확인했습니다. 프레임의 마지막 픽셀에서는 q_frame_last가 1클럭 올라오면서 프레임이 끝났다고 알려줍니다. 패딩 동작도 명확했는데, q_is_pad가 1인 구간에서는 q_pixel이 0으로 유지됐고, 프레임 앞쪽과 끝쪽 패딩(마지막 4라인)이 잘 보였습니다. 중간 구간은 실제 유효 영상이 양자화된 값들로 채워졌습니다. 콘솔 로그에도 out=1024 (exp 1024), lines=32 (exp 32)로 기대치와 동일하게 나왔습니다.
+- 두 번째 파형:
+ 프레임 사이에 공백이 길게 보이는 경우입니다. 테스트벤치에서 VGA 클록과 타이밍을 같이 보여주도록 해놔서, 입력과 출력 사이에 파이프라인 지연과 인터페이스 대기가 그대로 드러나 공백이 길게 보였습니다. 기능상 문제는 없고, 다음 프레임도 첫 번째와 똑같이 1024픽셀, 32라인 구조로 정상 출력됐습니다. 즉, 한 프레임 딜레이가 있는 버전이라고 보면 됩니다. 이때도 q_line_last랑 q_frame_last 타이밍은 그대로 정확했습니다.
+
+- simulation 정리: 전처리, 양자화 경로는 시뮬레이션에서 규격대로 잘 동작했습니다. q_valid 기준으로 프레임당 1024픽셀, 32라인이 맞았고, q_is_pad가 1인 곳은 전부 제로패딩(픽셀=0)이라 구간 구분이 확실했습니다. 라인/프레임 끝 표시(q_line_last, q_frame_last)도 원하는 타이밍에 딱 맞았습니다. 두 번째 캡처에서 프레임 사이 공백이 길게 보이는 건 테스트벤치 구성(VGA 타이밍 표시) 때문이라 동작 문제는 아니었습니다.
+
+## 5. 하드웨어 합성/구현 단계에서의 실패 현황
+
+- 합성 시 반복적으로 아래 에러 발생:
+ERROR: [Synth 8-5809] Error generated from encrypted envelope. [/home/ubuntu/aws-fpga/hdk/cl/examples/cl_sde/build/src_post_encryption/cl_sde.sv:252] 
+ERROR: [Synth 8-5809] Error generated from encrypted envelope. [/home/ubuntu/aws-fpga/hdk/cl/examples/cl_sde/build/src_post_encryption/cl_sde.sv:23]
+
+## 6. report 추출 명령어
+$ cd ~/aws-fpga
+$ source hdk_setup.sh
+$ cd hdk/cl/examples/cl_sde
+$ export CL_DIR=$(pwd)
+$ cd build/scripts
+./aws_build_dcp_from_cl.py -c cl_sde
+
+
 
 
