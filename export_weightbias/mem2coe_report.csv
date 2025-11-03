@@ -1,0 +1,11 @@
+mem_path,coe_path,count(depth),radix
+/mnt/data/conv1_b_q16.mem,/mnt/data/coe/conv1_b_q16.coe,6,16
+/mnt/data/conv2_b_q16.mem,/mnt/data/coe/conv2_b_q16.coe,16,16
+/mnt/data/conv3_b_q16.mem,/mnt/data/coe/conv3_b_q16.coe,120,16
+/mnt/data/fc1_b_q16.mem,/mnt/data/coe/fc1_b_q16.coe,84,16
+/mnt/data/fc2_b_q16.mem,/mnt/data/coe/fc2_b_q16.coe,10,16
+/mnt/data/conv1_w.mem,/mnt/data/coe/conv1_w.coe,150,16
+/mnt/data/conv2_w.mem,/mnt/data/coe/conv2_w.coe,2400,16
+/mnt/data/conv3_w.mem,/mnt/data/coe/conv3_w.coe,48000,16
+/mnt/data/fc1_w.mem,/mnt/data/coe/fc1_w.coe,10080,16
+/mnt/data/fc2_w.mem,/mnt/data/coe/fc2_w.coe,840,16
