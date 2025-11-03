@@ -1,5 +1,3 @@
-# fpga-lenet5-implementation-optimization
-
 # FPGA Implementation and Optimization of LeNet-5
 
 본 프로젝트는 CNN 기반 이미지 분류 모델인 **LeNet-5**를 FPGA 상에 구현하고,  
